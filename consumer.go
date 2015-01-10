@@ -20,6 +20,9 @@ type Options struct {
 	// Path of the state file where to persiste the current oplog position.
 	// If empty string, the state is not stored.
 	StateFile string
+	// AllowReplication activates replication if the state file is not found.
+	// When false, a consumer with no state file will only get future operations.
+	AllowReplication bool
 	// Password to access password protected oplog
 	Password string
 	// Filters to apply on the oplog output
@@ -331,15 +334,21 @@ func (c *Consumer) connect() (err error) {
 // as for tailing only future events.
 //
 // If the StateFile option is set but no file exists, the last event id is
-// initialized to "0" in order to request a full replication.
+// initialized to "0" in order to request a full replication if AllowReplication
+// option is set to true or to an empty string otherwise (start at present).
 func (c *Consumer) loadLastEventID() (id string, err error) {
 	if c.options.StateFile == "" {
 		return "", nil
 	}
 	_, err = os.Stat(c.options.StateFile)
 	if os.IsNotExist(err) {
-		// full replication
-		id = "0"
+		if c.options.AllowReplication {
+			// full replication
+			id = "0"
+		} else {
+			// start at NOW()
+			id = ""
+		}
 		err = nil
 	} else if err == nil {
 		var content []byte
