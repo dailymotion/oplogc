@@ -1,4 +1,4 @@
-# OpLog Consumer
+# OpLog Consumer [![godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/dailymotion/oplogc) [![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat)](https://raw.githubusercontent.com/dailymotion/oplogc/master/LICENSE) [![build](https://img.shields.io/travis/dailymotion/oplogc.svg?style=flat)](https://travis-ci.org/dailymotion/oplogc)
 
 This repository contains a Go library to connect as a consumer to an [OpLog](https://github.com/dailymotion/oplog) server.
 
