@@ -113,17 +113,21 @@ func Subscribe(url string, options Options) *Consumer {
 	return c
 }
 
-// Process reads the oplog output and send operations back thru the given ops channel.
+// Start reads the oplog output and send operations back thru the returned ops channel.
 // The caller must then call the Done() method on operation when it has been handled.
 // Failing to call Done() the operations would prevent any resume in case of connection
 // failure or restart of the process.
 //
-// Any errors are return on the errs channel. In all cases, the Process() method will
+// Any errors are return on the errs channel. In all cases, the Start() method will
 // try to reconnect and/or ignore the error. It is the callers responsability to stop
 // the process loop by calling the Stop() method.
 //
 // When the loop has ended, a message is sent thru the done channel.
-func (c *Consumer) Process(ops chan<- Operation, errs chan<- error, done chan<- bool) {
+func (c *Consumer) Start() (ops chan Operation, errs chan error, done chan bool) {
+	ops = make(chan Operation)
+	errs = make(chan error)
+	done = make(chan bool)
+
 	// Ensure we never have more than one process loop running
 	if c.processing {
 		panic("Can't run two process loops in parallel")
@@ -157,32 +161,36 @@ func (c *Consumer) Process(ops chan<- Operation, errs chan<- error, done chan<- 
 		go c.periodicStateSaving(errs, stopStateSaving, &wg)
 	}
 
-	for {
-		select {
-		case <-stop:
-			// If a stop is requested, we ensure all go routines are stopped
-			close(stopReadStream)
-			close(stopStateSaving)
-			if c.body != nil {
-				// Closing the body will ensure readStream isn't blocked in IO wait
-				c.body.Close()
-			}
-			wg.Wait()
-			c.processing = false
-			done <- true
-			return
-		case op := <-c.ack:
-			if op.Event == "reset" {
-				c.ife.Unlock()
-			}
-			if idx := c.ife.Pull(op.ID); idx == 0 {
-				c.SetLastId(op.ID)
+	go func() {
+		for {
+			select {
+			case <-stop:
+				// If a stop is requested, we ensure all go routines are stopped
+				close(stopReadStream)
+				close(stopStateSaving)
+				if c.body != nil {
+					// Closing the body will ensure readStream isn't blocked in IO wait
+					c.body.Close()
+				}
+				wg.Wait()
+				c.processing = false
+				done <- true
+				return
+			case op := <-c.ack:
+				if op.Event == "reset" {
+					c.ife.Unlock()
+				}
+				if idx := c.ife.Pull(op.ID); idx == 0 {
+					c.SetLastId(op.ID)
+				}
 			}
 		}
-	}
+	}()
+
+	return
 }
 
-// Stop instructs the Process() loop to stop
+// Stop instructs the Start() loop to stop
 func (c *Consumer) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()

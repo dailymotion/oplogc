@@ -14,10 +14,7 @@ import (
 func main() {
     c := oplogc.Subscribe(myOplogURL, oplogc.Options{})
 
-    ops := make(chan oplogc.Operation)
-    errs := make(chan error)
-    done := make(chan bool)
-    go c.Process(ops, errs, done)
+    ops, errs, done := c.Start(ops, errs, done)
 
     for {
         select {
