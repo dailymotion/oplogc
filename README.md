@@ -14,7 +14,7 @@ import (
 func main() {
     c := oplogc.Subscribe(myOplogURL, oplogc.Options{})
 
-    ops, errs, done := c.Start(ops, errs, done)
+    ops, errs, done := c.Start()
 
     for {
         select {
