@@ -5,7 +5,7 @@ import "time"
 type Operation struct {
 	// ID holds the operation id used to resume the streaming in case of connection failure.
 	ID string
-	// Event is the kind of operation. I can be one of insert, update or delete.
+	// Event is the kind of operation. It can be insert, update or delete.
 	Event string
 	// Data holds the operation metadata.
 	Data *OperationData
