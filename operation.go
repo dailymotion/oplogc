@@ -32,3 +32,13 @@ type OperationData struct {
 func (o *Operation) Done() {
 	o.ack <- *o
 }
+
+func (o *Operation) Validate() bool {
+	if o.Event == "" {
+		return false
+	}
+	if o.Data == nil && o.Event != "reset" && o.Event != "live" {
+		return false
+	}
+	return true
+}

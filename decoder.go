@@ -32,6 +32,7 @@ func (d *Decoder) Next(op *Operation) (err error) {
 	op.Data = nil
 
 	var line string
+	started := false
 
 	for {
 		if line, err = d.ReadString('\n'); err != nil {
@@ -39,14 +40,18 @@ func (d *Decoder) Next(op *Operation) (err error) {
 			break
 		}
 		if line == "\n" {
-			// Message is complete, send it
-			return
+			if started {
+				// Message is complete, send it
+				break
+			}
+			continue
 		}
 		line = strings.TrimSuffix(line, "\n")
 		if strings.HasPrefix(line, ":") {
 			// Comment, ignore
 			continue
 		}
+		started = true
 		sections := strings.SplitN(line, ":", 2)
 		field, value := sections[0], ""
 		if len(sections) == 2 {
@@ -68,6 +73,9 @@ func (d *Decoder) Next(op *Operation) (err error) {
 
 	if err == nil && op.Event == "" {
 		err = ErrIncompleteEvent
+	}
+	if !op.Validate() {
+		err = ErrInvalidEvent
 	}
 
 	return
