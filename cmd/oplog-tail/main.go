@@ -18,10 +18,11 @@ import (
 )
 
 var (
-	password  = flag.String("password", "", "Password to access the oplog.")
-	stateFile = flag.String("state-file", "", "Path to the state file storing the oplog position id (default: no store)")
-	types     = flag.String("types", "", "Comma seperated list of types to filter on")
-	parents   = flag.String("parents", "", "Comma seperated list of parents type/id to filter on")
+	password         = flag.String("password", "", "Password to access the oplog.")
+	stateFile        = flag.String("state-file", "", "Path to the state file storing the oplog position id (default: no store).")
+	types            = flag.String("types", "", "Comma seperated list of types to filter on.")
+	parents          = flag.String("parents", "", "Comma seperated list of parents type/id to filter on.")
+	allowReplication = flag.Bool("allow-replication", false, "Try to do a full replication (ignored if -state-file is not provided).")
 )
 
 func main() {
@@ -42,9 +43,10 @@ func main() {
 		Parents: strings.Split(*parents, ","),
 	}
 	c := oplogc.Subscribe(url, oplogc.Options{
-		StateFile: *stateFile,
-		Password:  *password,
-		Filter:    f,
+		StateFile:        *stateFile,
+		Password:         *password,
+		AllowReplication: *allowReplication,
+		Filter:           f,
 	})
 
 	ops, errs, done := c.Start()
