@@ -209,6 +209,7 @@ func (c *Consumer) readStream(ops chan<- Operation, errs chan<- error, stop <-ch
 	d := NewDecoder(c.body)
 	op := Operation{}
 	op.ack = c.ack
+	backoff := time.Second
 	for {
 		err := d.Next(&op)
 		select {
@@ -219,17 +220,16 @@ func (c *Consumer) readStream(ops chan<- Operation, errs chan<- error, stop <-ch
 		}
 		if err != nil {
 			errs <- err
-			backoff := time.Second
 			for {
 				time.Sleep(backoff)
+				if backoff < 30*time.Second {
+					backoff *= 2
+				}
 				if err = c.connect(); err == nil {
 					d = NewDecoder(c.body)
 					break
 				}
 				errs <- err
-				if backoff < 30*time.Second {
-					backoff *= 2
-				}
 			}
 			continue
 		}
@@ -246,6 +246,9 @@ func (c *Consumer) readStream(ops chan<- Operation, errs chan<- error, stop <-ch
 		default:
 			ops <- op
 		}
+
+		// reset backoff on success
+		backoff = time.Second
 	}
 }
 
