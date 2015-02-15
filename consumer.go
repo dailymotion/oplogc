@@ -318,14 +318,6 @@ func (c *Consumer) connect() (err error) {
 	if err != nil {
 		return
 	}
-	if lastId != "" && res.Header.Get("Last-Event-ID") != lastId {
-		// If the response doesn't contain the requested Last-Event-ID
-		// header, it means the resume did fail. This is not a recoverable
-		// error, the operator must either decide to perform a full replication
-		// or accept to loose events by truncating the state file.
-		err = ErrResumeFailed
-		return
-	}
 	if res.StatusCode == 403 || res.StatusCode == 401 {
 		err = ErrAccessDenied
 		return
