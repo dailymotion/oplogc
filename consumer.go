@@ -1,4 +1,11 @@
 // Package oplogc provides an easy to use client interface for the oplog service.
+//
+// See https://github.com/dailymotion/oplog for more information on oplog.
+//
+// In case of a connection failure recovery the ack mechanism allows you to handle operations in parallel
+// without loosing track of which operation has been handled.
+//
+// See cmd/oplog-tail for another usage example.
 package oplogc
 
 import (
@@ -43,20 +50,20 @@ type Consumer struct {
 	url string
 	// options for the consumer's subscription
 	options Options
-	// lastId is the current most advanced acked event id
-	lastId string
-	// saved is true when current lastId is persisted
+	// lastID is the current most advanced acked event id
+	lastID string
+	// saved is true when current lastID is persisted
 	saved bool
 	// processing is true when a process loop is in progress
 	processing bool
-	// mu is a mutex used to coordinate access to lastId and saved properties
+	// mu is a mutex used to coordinate access to lastID and saved properties
 	mu *sync.RWMutex
 	// http is the client used to connect to the oplog
 	http http.Client
 	// body points to the current streamed response body
 	body io.ReadCloser
 	// ife holds all event ids sent to the consumer but no yet acked
-	ife *InFlightEvents
+	ife *inFlightEvents
 	// ack is a channel to ack the operations
 	ack chan Operation
 	// stop is a channel used to stop the process loop
@@ -105,7 +112,7 @@ func Subscribe(url string, options Options) *Consumer {
 	c := &Consumer{
 		url:     strings.Join([]string{url, qs}, ""),
 		options: options,
-		ife:     NewInFlightEvents(),
+		ife:     newInFlightEvents(),
 		mu:      &sync.RWMutex{},
 		ack:     make(chan Operation),
 	}
@@ -140,12 +147,12 @@ func (c *Consumer) Start() (ops chan Operation, errs chan error, done chan bool)
 	c.mu.Unlock()
 
 	// Recover the last event id saved from a previous excution
-	lastId, err := c.loadLastEventID()
+	lastID, err := c.loadLastEventID()
 	if err != nil {
 		errs <- err
 		return
 	}
-	c.lastId = lastId
+	c.lastID = lastID
 
 	wg := sync.WaitGroup{}
 
@@ -180,8 +187,8 @@ func (c *Consumer) Start() (ops chan Operation, errs chan error, done chan bool)
 				if op.Event == "reset" {
 					c.ife.Unlock()
 				}
-				if idx := c.ife.Pull(op.ID); idx == 0 {
-					c.SetLastId(op.ID)
+				if idx := c.ife.pull(op.ID); idx == 0 {
+					c.SetLastID(op.ID)
 				}
 			}
 		}
@@ -206,12 +213,12 @@ func (c *Consumer) readStream(ops chan<- Operation, errs chan<- error, stop <-ch
 	defer wg.Done()
 
 	c.connect()
-	d := NewDecoder(c.body)
+	d := newDecoder(c.body)
 	op := Operation{}
 	op.ack = c.ack
 	backoff := time.Second
 	for {
-		err := d.Next(&op)
+		err := d.next(&op)
 		select {
 		case <-stop:
 			return
@@ -226,7 +233,7 @@ func (c *Consumer) readStream(ops chan<- Operation, errs chan<- error, stop <-ch
 					backoff *= 2
 				}
 				if err = c.connect(); err == nil {
-					d = NewDecoder(c.body)
+					d = newDecoder(c.body)
 					break
 				}
 				errs <- err
@@ -234,7 +241,7 @@ func (c *Consumer) readStream(ops chan<- Operation, errs chan<- error, stop <-ch
 			continue
 		}
 
-		c.ife.Push(op.ID)
+		c.ife.push(op.ID)
 		if op.Event == "reset" {
 			// We must not process any further operation until the "reset" operation
 			// is not acke
@@ -252,7 +259,7 @@ func (c *Consumer) readStream(ops chan<- Operation, errs chan<- error, stop <-ch
 	}
 }
 
-// periodicStateSaving saves the lastId into a file every seconds if it has been updated
+// periodicStateSaving saves the lastID into a file every seconds if it has been updated
 func (c *Consumer) periodicStateSaving(errs chan<- error, stop <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -263,33 +270,33 @@ func (c *Consumer) periodicStateSaving(errs chan<- error, stop <-chan struct{}, 
 		case <-time.After(time.Second):
 			c.mu.RLock()
 			saved := c.saved
-			lastId := c.lastId
+			lastID := c.lastID
 			c.mu.RUnlock()
 			if saved {
 				continue
 			}
-			if err := c.saveLastEventID(lastId); err != nil {
+			if err := c.saveLastEventID(lastID); err != nil {
 				errs <- ErrWritingState
 			}
 			c.mu.Lock()
-			c.saved = lastId == c.lastId
+			c.saved = lastID == c.lastID
 			c.mu.Unlock()
 		}
 	}
 }
 
-// LastId returns the most advanced acked event id
-func (c *Consumer) LastId() string {
+// LastID returns the most advanced acked event id
+func (c *Consumer) LastID() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.lastId
+	return c.lastID
 }
 
-// SetLastId sets the last id to the given value and informs the save go routine
-func (c *Consumer) SetLastId(id string) {
+// SetLastID sets the last id to the given value and informs the save go routine
+func (c *Consumer) SetLastID(id string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.lastId = id
+	c.lastID = id
 	c.saved = false
 }
 
@@ -307,9 +314,9 @@ func (c *Consumer) connect() (err error) {
 	}
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Accept", "text/event-stream")
-	lastId := c.LastId()
-	if len(lastId) > 0 {
-		req.Header.Set("Last-Event-ID", lastId)
+	lastID := c.LastID()
+	if len(lastID) > 0 {
+		req.Header.Set("Last-Event-ID", lastID)
 	}
 	if c.options.Password != "" {
 		req.SetBasicAuth("", c.options.Password)

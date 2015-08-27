@@ -17,16 +17,16 @@ var ErrInvalidEvent = errors.New("invalid event")
 // ErrConnectionClosed when the SSE stream has closed unexpectedly
 var ErrConnectionClosed = errors.New("connection closed")
 
-type Decoder struct {
+type decoder struct {
 	*bufio.Reader
 }
 
-func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{bufio.NewReader(r)}
+func newDecoder(r io.Reader) *decoder {
+	return &decoder{bufio.NewReader(r)}
 }
 
-// Next reads the next operation from a SSE stream or block until one comes in.
-func (d *Decoder) Next(op *Operation) (err error) {
+// next reads the next operation from a SSE stream or block until one comes in.
+func (d *decoder) next(op *Operation) (err error) {
 	// Reset non reusable fields
 	op.Event = ""
 	op.Data = nil
@@ -74,7 +74,7 @@ func (d *Decoder) Next(op *Operation) (err error) {
 	if err == nil && op.Event == "" {
 		err = ErrIncompleteEvent
 	}
-	if !op.Validate() {
+	if !op.validate() {
 		err = ErrInvalidEvent
 	}
 

@@ -37,7 +37,7 @@ func Example() {
 				log.Fatal(err)
 			case oplogc.ErrResumeFailed:
 				log.Print("Resume failed, forcing full replication")
-				c.SetLastId("0")
+				c.SetLastID("0")
 			default:
 				log.Print(err)
 			}

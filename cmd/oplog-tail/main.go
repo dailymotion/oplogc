@@ -76,7 +76,7 @@ func main() {
 			case oplogc.ErrResumeFailed:
 				if *stateFile != "" {
 					log.Print("Resume failed, forcing full replication")
-					c.SetLastId("0")
+					c.SetLastID("0")
 				} else {
 					log.Print(err)
 				}

@@ -2,6 +2,7 @@ package oplogc
 
 import "time"
 
+// Operation represents an OpLog operation
 type Operation struct {
 	// ID holds the operation id used to resume the streaming in case of connection failure.
 	ID string
@@ -33,7 +34,8 @@ func (o *Operation) Done() {
 	o.ack <- *o
 }
 
-func (o *Operation) Validate() bool {
+// validate validates an operation's syntax
+func (o *Operation) validate() bool {
 	if o.Event == "" {
 		return false
 	}

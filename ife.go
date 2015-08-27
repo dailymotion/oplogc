@@ -2,28 +2,28 @@ package oplogc
 
 import "sync"
 
-type InFlightEvents struct {
+type inFlightEvents struct {
 	sync.RWMutex
 	// ids is the list of in flight event IDs
 	ids []string
 }
 
-// NewInFlightEvents contains events ids which have been received but not yet acked
-func NewInFlightEvents() *InFlightEvents {
-	return &InFlightEvents{
+// newInFlightEvents contains events ids which have been received but not yet acked
+func newInFlightEvents() *inFlightEvents {
+	return &inFlightEvents{
 		ids: []string{},
 	}
 }
 
-// Count returns the number of events in flight.
-func (ife *InFlightEvents) Count() int {
+// count returns the number of events in flight.
+func (ife *inFlightEvents) count() int {
 	ife.RLock()
 	defer ife.RUnlock()
 	return len(ife.ids)
 }
 
-// Push adds a new event id to the IFE
-func (ife *InFlightEvents) Push(id string) {
+// push adds a new event id to the IFE
+func (ife *inFlightEvents) push(id string) {
 	ife.Lock()
 	defer ife.Unlock()
 
@@ -37,10 +37,10 @@ func (ife *InFlightEvents) Push(id string) {
 	ife.ids = append(ife.ids, id)
 }
 
-// Pull pulls the given id from the list and returns the index
+// pull pulls the given id from the list and returns the index
 // of the pulled element in the queue. If the element wasn't found
 // the index is set to -1.
-func (ife *InFlightEvents) Pull(id string) (index int) {
+func (ife *inFlightEvents) pull(id string) (index int) {
 	ife.Lock()
 	defer ife.Unlock()
 	index = -1
