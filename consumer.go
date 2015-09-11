@@ -113,10 +113,12 @@ func Subscribe(url string, options Options) *Consumer {
 	}
 
 	var proxyFunc func(*http.Request) (*neturl.URL, error) = nil
-
 	if len(options.Proxy) > 0 {
-		url_proxy, _ := neturl.ParseRequestURI(options.Proxy)
-		proxyFunc = http.ProxyURL(url_proxy)
+		urlProxy, err := neturl.Parse(options.Proxy)
+		if err != nil {
+			panic(err)
+		}
+		proxyFunc = http.ProxyURL(urlProxy)
 	}
 
 	c := &Consumer{
