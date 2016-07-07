@@ -10,6 +10,7 @@ package oplogc
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -109,12 +110,21 @@ func Subscribe(url string, options Options) *Consumer {
 		}
 	}
 
+	// Custom client with custom transport to explicitly
+	// disable HTTP/2 in go 1.6+
+	proto := map[string]func(string, *tls.Conn) http.RoundTripper{}
+	transport := &http.Transport{
+		TLSNextProto: proto,
+	}
 	c := &Consumer{
 		url:     strings.Join([]string{url, qs}, ""),
 		options: options,
 		ife:     newInFlightEvents(),
 		mu:      &sync.RWMutex{},
 		ack:     make(chan Operation),
+		http: http.Client{
+			Transport: transport,
+		},
 	}
 
 	return c
