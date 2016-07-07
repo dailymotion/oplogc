@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -33,6 +34,8 @@ type Options struct {
 	AllowReplication bool
 	// Password to access password protected oplog
 	Password string
+	// Proxy to be used to access oplog
+	Proxy string
 	// Filters to apply on the oplog output
 	Filter Filter
 }
@@ -110,12 +113,23 @@ func Subscribe(url string, options Options) *Consumer {
 		}
 	}
 
+	var proxyFunc func(*http.Request) (*neturl.URL, error) = nil
+	if len(options.Proxy) > 0 {
+		urlProxy, err := neturl.Parse(options.Proxy)
+		if err != nil {
+			panic(err)
+		}
+		proxyFunc = http.ProxyURL(urlProxy)
+	}
+
 	// Custom client with custom transport to explicitly
 	// disable HTTP/2 in go 1.6+
 	proto := map[string]func(string, *tls.Conn) http.RoundTripper{}
 	transport := &http.Transport{
 		TLSNextProto: proto,
+		Proxy:        proxyFunc,
 	}
+
 	c := &Consumer{
 		url:     strings.Join([]string{url, qs}, ""),
 		options: options,
